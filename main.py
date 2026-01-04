@@ -24,6 +24,7 @@ def update_center():
 
         if choice == '1':
             print("\n[*] Mengemaskini engine muat turun...")
+            # Mengemaskini yt-dlp untuk mengelakkan isu kelajuan perlahan
             subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
             input("\nSelesai! Tekan Enter...")
         
@@ -48,7 +49,7 @@ def update_center():
             )
             try:
                 os.system(update_cmd)
-                sys.exit()
+                sys.exit() # Tutup program supaya fail boleh digantikan
             except Exception as e:
                 print(f"[!] Ralat: {e}")
 
@@ -77,7 +78,7 @@ def list_main_folders():
 def run_download(urls, folder_path, format_type):
     ffmpeg_path = os.path.join(BASE_DIR, 'ffmpeg.exe')
     
-    # Logik untuk Video & MP3 Berasingan (Sub-folders)
+    # Logik untuk Video & MP3 Berasingan ke sub-folder
     if format_type == '4':
         mp3_dir = os.path.join(folder_path, 'mp3')
         mp4_dir = os.path.join(folder_path, 'mp4')
@@ -92,7 +93,7 @@ def run_download(urls, folder_path, format_type):
         'no_warnings': True,
         'outtmpl': f'{folder_path}/%(title)s.%(ext)s',
         'ffmpeg_location': ffmpeg_path if os.path.exists(ffmpeg_path) else None,
-        'noplaylist': True, # Elakkan looping banyak video
+        'noplaylist': True, # Pastikan hanya muat turun satu video
     }
 
     if format_type == '1': # MP3 320kbps
@@ -102,7 +103,7 @@ def run_download(urls, folder_path, format_type):
         })
     elif format_type == '2': # Video Raw (No Audio)
         ydl_opts.update({'format': 'bestvideo'})
-    elif format_type == '3': # Video Combined (Fixed for Media Player)
+    elif format_type == '3': # Video Combined (Sesuai untuk Media Player)
         ydl_opts.update({
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
@@ -137,6 +138,7 @@ def select_destination_folder():
                 if not os.path.exists(p): os.makedirs(p)
                 return p
         elif c == '3':
+            # Scan folder sedia ada di mp4-main sahaja
             folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
             if not folders: continue
             for i, f in enumerate(folders, 1): print(f"{i}. {f}")
