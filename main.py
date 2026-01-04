@@ -1,152 +1,169 @@
+import yt_dlp
 import os
 import sys
+import platform
 import subprocess
 
-# --- FUNGSI 1: SYSTEM UPDATE (GIT PULL) ---
-# Ini untuk feature "6. UPDATE APP CODE" dalam gambar
-def update_app_code():
-    print("\n--- UPDATE APP CODE ---")
-    print("[*] Checking for updates...")
-    try:
-        result = subprocess.run(["git", "pull"], capture_output=True, text=True)
-        if result.returncode == 0:
-            print(f"[+] Git Output:\n{result.stdout}")
-            print("[+] App updated successfully! Sila restart tool ini.")
-        else:
-            print(f"[!] Update Error:\n{result.stderr}")
-            print("[!] Pastikan git installed.")
-    except Exception as e:
-        print(f"[!] Error: {e}")
-    input("\nTekan Enter untuk kembali...")
+# --- KONFIGURASI PATH ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# --- FUNGSI 2: LOGIC FOLDER SEDIA ADA ---
-# Ini yang akan listkan folder macam dalam gambar ke-3
-def pilih_folder_sedia_ada():
-    # Dapatkan senarai semua folder dalam directory sekarang (.)
-    # Kita filter supaya ambil folder sahaja (isdir) dan abaikan folder tersembunyi (.)
-    all_items = os.listdir('.')
-    folders = [f for f in all_items if os.path.isdir(f) and not f.startswith('.')]
-    folders.sort() # Susun ikut abjad
-
-    if not folders:
-        print("\n[!] Tiada folder lain dijumpai di sini.")
-        return None
-
+# --- FUNGSI LIST FOLDER (OPTION 4) ---
+def list_main_folders():
     while True:
-        # Paparkan list folder dengan nombor
-        # Rujukan Gambar 3: List folder dipaparkan (cth: 1. DAN DA DAN...)
-        print("\n--- PILIH FOLDER SEDIA ADA ---")
-        for index, folder_name in enumerate(folders, 1):
-            print(f"{index}. {folder_name}")
-        print("0. < KEMBALI")
-
-        choice = input("Pilih: ") # Rujukan Gambar 3
-
-        if choice == '0':
-            return None
-        
+        print("\n" + "="*50)
+        print(f"{'FILE MANAGER - SENARAI FOLDER':^50}")
+        print("="*50)
         try:
-            choice_idx = int(choice) - 1
-            if 0 <= choice_idx < len(folders):
-                selected = folders[choice_idx]
-                print(f"[*] Folder dipilih: {selected}")
-                return selected
+            folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
+            folders.sort()
+            if not folders:
+                print("[!] Tiada folder dijumpai dalam mp4-main.")
             else:
-                print("[!] Nombor tidak sah.")
-        except ValueError:
-            print("[!] Sila masukkan nombor.")
+                print(f"Lokasi: {BASE_DIR}\n")
+                for i, folder in enumerate(folders, 1):
+                    count = len(os.listdir(os.path.join(BASE_DIR, folder)))
+                    print(f"{i}. {folder} ({count} fail)")
+        except Exception as e:
+            print(f"[!] Ralat scan: {e}")
+        print("\n0. < KEMBALI")
+        if input("Pilih: ") == '0': break
 
-# --- FUNGSI 3: MENU PILIH FOLDER ---
-def select_destination_folder():
-    default_folder = 'downloads'
+# --- FUNGSI DOWNLOADER (FIXED CODECS) ---
+def run_download(urls, folder_path, format_type):
+    ffmpeg_path = os.path.join(BASE_DIR, 'ffmpeg.exe')
     
+    # Logik untuk Video & MP3 Asing (Sub-folders)
+    if format_type == '4':
+        mp3_dir = os.path.join(folder_path, 'mp3')
+        mp4_dir = os.path.join(folder_path, 'mp4')
+        for p in [mp3_dir, mp4_dir]:
+            if not os.path.exists(p): os.makedirs(p)
+        print("[*] Memproses muat turun berasingan (MP3 & MP4)...")
+        run_download(urls, mp3_dir, '1')
+        run_download(urls, mp4_dir, '3')
+        return
+
+    ydl_opts = {
+        'quiet': False,
+        'no_warnings': True,
+        'outtmpl': f'{folder_path}/%(title)s.%(ext)s',
+        'ffmpeg_location': ffmpeg_path if os.path.exists(ffmpeg_path) else None,
+        'noplaylist': True,
+    }
+
+    if format_type == '1': # MP3 Only
+        ydl_opts.update({
+            'format': 'bestaudio/best',
+            'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '320'}],
+        })
+    elif format_type == '2': # Video Raw (No Audio)
+        ydl_opts.update({'format': 'bestvideo'})
+    elif format_type == '3': # Video Combined (FIXED FOR MEDIA PLAYER)
+        ydl_opts.update({
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+        })
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        for url in urls:
+            url_clean = url.strip()
+            if not url_clean: continue
+            try: 
+                print(f"\n[*] Memproses: {url_clean}")
+                ydl.download([url_clean])
+            except Exception as e: 
+                print(f"[!] Gagal: {e}")
+
+# --- PEMILIHAN FOLDER ---
+def select_destination_folder():
+    default_folder = os.path.join(BASE_DIR, 'downloads')
     while True:
-        # Tiru style Gambar 1
         print("\n--- PILIH FOLDER ---")
-        print(f"1. '{default_folder}' (Default)")
+        print(f"1. 'downloads' (Default)")
         print("2. Folder Baru")
         print("3. Folder Sedia Ada")
         print("0. < KEMBALI")
         
-        choice = input("Pilihan: ") # Rujukan Gambar 1
-        
-        selected_folder = ""
-        
-        if choice == '1':
-            selected_folder = default_folder
-            break
-            
-        elif choice == '2':
-            custom_name = input("Nama Folder Baru: ")
-            if custom_name.strip():
-                selected_folder = custom_name
-                break
-            else:
-                print("[!] Nama folder tidak boleh kosong.")
+        c = input("Pilihan: ")
+        if c == '0': return None
+        if c == '1':
+            if not os.path.exists(default_folder): os.makedirs(default_folder)
+            return default_folder
+        elif c == '2':
+            name = input("Nama folder baru: ").strip()
+            if name:
+                p = os.path.join(BASE_DIR, name)
+                if not os.path.exists(p): os.makedirs(p)
+                return p
+        elif c == '3':
+            folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
+            folders.sort()
+            if not folders: continue
+            print("\n--- SENARAI FOLDER ---")
+            for i, f in enumerate(folders, 1): print(f"{i}. {f}")
+            print("0. < KEMBALI")
+            sel = input("Pilih: ")
+            if sel == '0': continue
+            try: return os.path.join(BASE_DIR, folders[int(sel)-1])
+            except: pass
 
-        elif choice == '3':
-            # Panggil fungsi khas untuk listkan folder
-            existing = pilih_folder_sedia_ada()
-            if existing:
-                selected_folder = existing
-                break
-            # Jika user tekan 0 (Back) dalam menu folder, loop akan ulang menu utama folder
-                
-        elif choice == '0':
-            return None
-            
-        else:
-            print("[!] Pilihan tidak sah.")
-
-    # Logic Create/Check Folder
-    if selected_folder:
-        if not os.path.exists(selected_folder):
-            try:
-                os.makedirs(selected_folder)
-                print(f"[+] Folder '{selected_folder}' berjaya dicipta.")
-            except OSError as e:
-                print(f"[!] Error create folder: {e}")
-                return None
-            
-    return selected_folder
-
-# --- FUNGSI 4: MENU UTAMA (HOME) ---
+# --- MENU UTAMA ---
 def main_menu():
     while True:
-        # Tiru style Gambar 2 (MP3 TURBO)
         print("\n" + "="*50)
-        print("   MP3 TURBO V2.1 (SELF-UPDATER)")
+        print(f"{'MP3 & MP4 TURBO V2.1 (SELF-UPDATER)':^50}")
         print("="*50)
         print("1. Download Single Link")
         print("2. Download Playlist")
         print("3. Bulk (.txt)")
-        print("4. File Manager")
-        print("5. UPDATE ENGINE (Fix Slow Speed)") # Dummy feature
-        print("6. UPDATE APP CODE (Dapatkan Feature Baru)") # Rujukan Gambar 2
+        print("4. File Manager (Senarai Folder)")
+        print("5. UPDATE ENGINE")
+        print("6. UPDATE APP CODE")
         print("7. Keluar")
         
         choice = input("Pilih: ")
         
         if choice in ['1', '2', '3']:
-            # Langkah 1: Pilih folder dulu
+            print("\n[*] Menuju ke pemilihan folder...")
             dest = select_destination_folder()
+            if not dest: continue
+
+            print("\nFormat:")
+            print("1. MP3 Only")
+            print("2. Video Raw (No Audio)")
+            print("3. Video Combined (Boleh Play)")
+            print("4. Video & MP3 (Separated Sub-folders)")
+            print("0. < KEMBALI")
+            fmt = input("Pilih format: ")
+            if fmt == '0': continue
             
-            if dest:
-                # Langkah 2: Logic download (placeholder)
-                print(f"\n[INFO] Memulakan proses dalam folder: '{dest}'")
-                # Jika user pilih quality (Gambar 3 bawah), boleh tambah logic di sini
-                # quality_menu() ...
-                input("Tekan Enter untuk sambung demo...")
-
-        elif choice == '6':
-            update_app_code() # Jalankan git pull
-
+            while True:
+                link = input("\nSila paste link (0 untuk Back ke Menu): ")
+                if link == '0': break
+                
+                run_download([link], dest, fmt)
+                
+                print("\nSeterusnya?")
+                print("1. Teruskan Paste Link")
+                print("2. Buka Folder")
+                print("3. Kembali ke Menu Utama")
+                act = input("Pilihan: ")
+                
+                if act == '2':
+                    if platform.system() == "Windows": os.startfile(dest)
+                    else: subprocess.call(["open", dest])
+                elif act == '3':
+                    return # Kembali ke loop menu utama
+        
+        elif choice == '4':
+            list_main_folders()
+            
         elif choice == '7':
-            print("Keluar...")
             sys.exit()
-            
-        else:
-            print("[!] Pilihan belum siap atau tidak sah.")
 
 if __name__ == "__main__":
     try:
