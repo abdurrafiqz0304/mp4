@@ -140,3 +140,5 @@ echo  2. Open a new Command Prompt (CMD).
 echo  3. Type 'mp4' anywhere to launch the tool.
 echo.
 pause
+
+:: Done
