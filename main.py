@@ -5,10 +5,10 @@ import platform
 import subprocess
 
 # --- KONFIGURASI PATH ---
-# BASE_DIR sentiasa merujuk kepada lokasi folder mp4-main
+# Memastikan program sentiasa merujuk kepada folder aplikasi utama
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# --- 1. SYSTEM UPDATE CENTER (Pilihan 5 & 6) ---
+# --- 1. SYSTEM UPDATE CENTER ---
 def update_center():
     while True:
         print("\n" + "="*50)
@@ -24,7 +24,6 @@ def update_center():
 
         if choice == '1':
             print("\n[*] Mengemaskini engine muat turun...")
-            # Mengemaskini yt-dlp untuk mengelakkan isu kelajuan perlahan
             subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
             input("\nSelesai! Tekan Enter...")
         
@@ -36,7 +35,8 @@ def update_center():
         elif choice == '3':
             print("\n[*] Menjalankan kemas kini aplikasi...")
             print("[*] Sila tunggu, CMD baru akan dibuka untuk menggantikan fail.")
-            # Arahan untuk download, extract, replace (xcopy), dan update path (install.bat)
+            
+            # Logik kemas kini: Download -> Extract -> XCopy (Replace) -> Install.bat
             update_cmd = (
                 f'start "Updater" cmd /c "cd /d "{BASE_DIR}" '
                 f'&& curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip '
@@ -44,14 +44,14 @@ def update_center():
                 f'&& xcopy mp4-main\\* . /E /Y /Q '
                 f'&& rmdir /s /q mp4-main '
                 f'&& del projek.zip '
-                f'&& install.bat '
-                f'&& echo [+] UPDATE BERJAYA & pause"'
+                f'&& call install.bat '
+                f'&& echo [+] UPDATE BERJAYA! SILA RESTART PROGRAM. & pause"'
             )
             try:
                 os.system(update_cmd)
-                sys.exit() # Tutup program supaya fail boleh digantikan
+                sys.exit() # Tutup program asal supaya fail boleh diganti
             except Exception as e:
-                print(f"[!] Ralat: {e}")
+                print(f"[!] Ralat kemas kini: {e}")
 
 # --- 2. FILE MANAGER (OPTION 4) ---
 def list_main_folders():
@@ -60,7 +60,7 @@ def list_main_folders():
         print(f"{'FILE MANAGER - SENARAI FOLDER':^50}")
         print("="*50)
         try:
-            # Hanya scan folder dalam mp4-main
+            # Hanya scan folder dalam direktori aplikasi
             folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
             folders.sort()
             if not folders:
@@ -74,36 +74,32 @@ def list_main_folders():
         print("\n0. < KEMBALI")
         if input("Pilih: ") == '0': break
 
-# --- 3. DOWNLOADER (MULTI-FORMAT & FIXED CODEC) ---
+# --- 3. DOWNLOADER (FIXED AUDIO CODEC) ---
 def run_download(urls, folder_path, format_type):
     ffmpeg_path = os.path.join(BASE_DIR, 'ffmpeg.exe')
     
-    # Logik untuk Video & MP3 Berasingan ke sub-folder
+    # Asingkan MP3 dan MP4 ke sub-folder jika dipilih
     if format_type == '4':
-        mp3_dir = os.path.join(folder_path, 'mp3')
-        mp4_dir = os.path.join(folder_path, 'mp4')
-        for p in [mp3_dir, mp4_dir]:
+        for sub in ['mp3', 'mp4']:
+            p = os.path.join(folder_path, sub)
             if not os.path.exists(p): os.makedirs(p)
-        run_download(urls, mp3_dir, '1')
-        run_download(urls, mp4_dir, '3')
+        run_download(urls, os.path.join(folder_path, 'mp3'), '1')
+        run_download(urls, os.path.join(folder_path, 'mp4'), '3')
         return
 
     ydl_opts = {
         'quiet': False,
-        'no_warnings': True,
         'outtmpl': f'{folder_path}/%(title)s.%(ext)s',
         'ffmpeg_location': ffmpeg_path if os.path.exists(ffmpeg_path) else None,
-        'noplaylist': True, # Pastikan hanya muat turun satu video
+        'noplaylist': True, # Mengelakkan muat turun playlist secara tidak sengaja
     }
 
-    if format_type == '1': # MP3 320kbps
+    if format_type == '1':
         ydl_opts.update({
             'format': 'bestaudio/best',
             'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '320'}],
         })
-    elif format_type == '2': # Video Raw (No Audio)
-        ydl_opts.update({'format': 'bestvideo'})
-    elif format_type == '3': # Video Combined (Sesuai untuk Media Player)
+    elif format_type == '3': # Membetulkan ralat audio Opus
         ydl_opts.update({
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
@@ -112,9 +108,7 @@ def run_download(urls, folder_path, format_type):
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for url in urls:
-            if not url.strip(): continue
-            try: ydl.download([url.strip()])
-            except Exception as e: print(f"[!] Gagal: {e}")
+            if url.strip(): ydl.download([url.strip()])
 
 # --- 4. PEMILIHAN FOLDER (image_f392a8.png) ---
 def select_destination_folder():
@@ -138,16 +132,14 @@ def select_destination_folder():
                 if not os.path.exists(p): os.makedirs(p)
                 return p
         elif c == '3':
-            # Scan folder sedia ada di mp4-main sahaja
             folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
             if not folders: continue
             for i, f in enumerate(folders, 1): print(f"{i}. {f}")
             sel = input("Pilih (0=Back): ")
-            if sel == '0': continue
             try: return os.path.join(BASE_DIR, folders[int(sel)-1])
             except: pass
 
-# --- 5. MENU UTAMA (image_f3924f.png) ---
+# --- 5. MAIN MENU ---
 def main_menu():
     while True:
         print("\n" + "="*50)
@@ -157,8 +149,8 @@ def main_menu():
         print("2. Download Playlist")
         print("3. Bulk (.txt)")
         print("4. File Manager (Senarai Folder)")
-        print("5. UPDATE ENGINE (Fix Slow Speed)")
-        print("6. UPDATE APP CODE (Replace Files)")
+        print("5. UPDATE ENGINE")
+        print("6. UPDATE APP CODE")
         print("7. Keluar")
         
         choice = input("Pilih: ")
@@ -169,7 +161,6 @@ def main_menu():
 
             print("\nFormat:")
             print("1. MP3 Only")
-            print("2. Video Raw sahaja")
             print("3. Video Combined (Boleh Play)")
             print("4. Video & MP3 (Separated Sub-folders)")
             print("0. < KEMBALI")
@@ -186,11 +177,11 @@ def main_menu():
                 if act == '2':
                     if platform.system() == "Windows": os.startfile(dest)
                     else: subprocess.call(["open", dest])
-                elif act == '3': return main_menu()
+                elif act == '3': break
         
         elif choice == '4':
             list_main_folders()
-        elif choice == '5' or choice == '6':
+        elif choice in ['5', '6']:
             update_center()
         elif choice == '7':
             sys.exit()
