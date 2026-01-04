@@ -1,0 +1,20 @@
+# 1. Jangan upload fail sistem Python
+__pycache__/
+*.py[cod]
+
+# 2. Jangan upload Tools berat (User kena download sendiri)
+ffmpeg.exe
+ffmpeg
+
+# 3. Jangan upload hasil download (Video/Lagu)
+Downloads*/
+*.mp3
+*.mp4
+*.webm
+*.mkv
+*.part
+*.ytdl
+
+# 4. Fail sistem Windows/Mac
+Thumbs.db
+.DS_Store
