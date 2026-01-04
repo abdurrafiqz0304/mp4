@@ -65,7 +65,7 @@ echo.
 pause
 exit
 
-:: --- PHASE 2: LIBRARY INSTALLATION ---
+:: --- PHASE 2: LIBRARY INSTALLATION (FIXED) ---
 :install_libs
 color 0b
 echo.
@@ -73,10 +73,15 @@ echo ---------------------------------------------------------------------------
 echo  [PHASE 2] Installing Dependencies
 echo -------------------------------------------------------------------------------
 echo  [INFO] Installing 'yt-dlp' engine...
-pip install -r requirements.txt
+
+:: --- FIX UTAMA DI SINI ---
+:: Kita guna 'python -m pip' dan bukan 'pip' sahaja.
+python -m pip install -r requirements.txt
+
 if %errorlevel% neq 0 (
     echo.
-    echo  [ERROR] Failed to install libraries. Please try running as Administrator.
+    echo  [ERROR] Failed to install libraries.
+    echo  Try running this file as Administrator.
     pause
     exit /b
 )
@@ -140,5 +145,3 @@ echo  2. Open a new Command Prompt (CMD).
 echo  3. Type 'mp4' anywhere to launch the tool.
 echo.
 pause
-
-:: Done
