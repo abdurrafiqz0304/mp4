@@ -25,15 +25,15 @@ The installer will automatically install Python libraries, download FFmpeg, and 
 
 ### Option 1: Git Clone (Recommended)
 ```bash
-git clone https://github.com/abdurrafiqz0304/mp4tomp3.git && cd mp4tomp3 && install.bat
+git clone https://github.com/abdurrafiqz0304/mp4.git && cd mp4 && install.bat
 ```
 
 ### Option 2: CMD
 ```bash
-curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4tomp3/archive/refs/heads/main.zip && tar -xf projek.zip && cd mp4tomp3-main && install.bat
+curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip && tar -xf projek.zip && cd mp4-main && install.bat
 ```
 
 ### Option 3: PowerShell
 ```bash
-Invoke-WebRequest -Uri "https://github.com/abdurrafiqz0304/mp4tomp3/archive/refs/heads/main.zip" -OutFile "projek.zip"; Expand-Archive -Path "projek.zip" -DestinationPath "."; cd mp4tomp3-main; .\install.bat
+Invoke-WebRequest -Uri "https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip" -OutFile "projek.zip"; Expand-Archive -Path "projek.zip" -DestinationPath "."; cd mp4-main; .\install.bat
 ```
