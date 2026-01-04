@@ -3,9 +3,9 @@ import os
 import sys
 import platform
 import subprocess
+import shutil  # Penting untuk fungsi padam folder
 
 # --- KONFIGURASI PATH ---
-# Memastikan program sentiasa merujuk kepada direktori aplikasi (mp4-main)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- 1. SYSTEM UPDATE CENTER ---
@@ -44,13 +44,6 @@ def update_center():
             print("\n[*] Menjalankan kemas kini aplikasi...")
             print("[*] CMD baru akan dibuka untuk proses muat turun dan penggantian fail.")
             
-            # --- LOGIK UPDATE (LINK BARU + REPLACE FOLDER) ---
-            # 1. Download zip dari link GitHub awak.
-            # 2. Extract zip (akan jadi folder 'mp4-main').
-            # 3. XCOPY semua isi 'mp4-main' ke folder sekarang (REPLACE).
-            # 4. Padam folder 'mp4-main' dan fail zip.
-            # 5. Jalankan install.bat untuk update PATH.
-            
             update_cmd = (
                 f'start "Updater" cmd /c "cd /d "{BASE_DIR}" '
                 f'&& curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip '
@@ -64,36 +57,129 @@ def update_center():
             
             try:
                 os.system(update_cmd)
-                sys.exit() # Tutup program utama supaya fail boleh diganti
+                sys.exit()
             except Exception as e:
                 print(f"[!] Ralat kemas kini: {e}")
 
-# --- 2. FILE MANAGER (OPTION 4) ---
+# --- 2. LOGIK FILE MANAGER BARU ---
+
+def delete_specific_file(folder_path):
+    while True:
+        print("\n--- PILIH FAIL UNTUK DIPADAM ---")
+        try:
+            files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+            files.sort()
+            
+            if not files:
+                print("[!] Folder kosong atau tiada fail.")
+                return
+
+            for i, f in enumerate(files, 1):
+                size = os.path.getsize(os.path.join(folder_path, f)) / (1024 * 1024)
+                print(f"{i}. {f} ({size:.2f} MB)")
+            
+            print("0. < KEMBALI")
+            
+            sel = input("Pilih nombor fail: ")
+            if sel == '0': return
+
+            idx = int(sel) - 1
+            if 0 <= idx < len(files):
+                file_to_del = os.path.join(folder_path, files[idx])
+                confirm = input(f"Adakah anda pasti mahu memadam '{files[idx]}'? (y/n): ")
+                if confirm.lower() == 'y':
+                    os.remove(file_to_del)
+                    print("[+] Fail berjaya dipadam.")
+            else:
+                print("[!] Pilihan tidak sah.")
+                
+        except Exception as e:
+            print(f"[!] Ralat: {e}")
+            return
+
+def manage_selected_folder(folder_name):
+    folder_path = os.path.join(BASE_DIR, folder_name)
+    
+    while True:
+        if not os.path.exists(folder_path):
+            print("[!] Folder ini sudah tidak wujud.")
+            break
+
+        # Kira jumlah fail
+        try:
+            file_count = len([f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))])
+        except: file_count = 0
+
+        print("\n" + "-"*40)
+        print(f"PENGURUSAN FOLDER: {folder_name} ({file_count} fail)")
+        print("-"*40)
+        print("1. Buka Folder (Explorer)")
+        print("2. Padam Fail Spesifik (Select File)")
+        print("3. PADAM ENTIRE FOLDER (Delete All)")
+        print("0. < KEMBALI")
+
+        c = input("Pilihan: ")
+        
+        if c == '0': break
+        
+        elif c == '1': # Buka Folder
+            if platform.system() == "Windows": os.startfile(folder_path)
+            else: subprocess.call(["open", folder_path])
+            
+        elif c == '2': # Padam Fail
+            delete_specific_file(folder_path)
+            
+        elif c == '3': # Padam Folder
+            confirm = input(f"\n[AMARAN] Adakah anda pasti mahu memadam folder '{folder_name}' dan SEMUA isinya? (y/n): ")
+            if confirm.lower() == 'y':
+                try:
+                    shutil.rmtree(folder_path)
+                    print(f"[+] Folder '{folder_name}' telah dipadam sepenuhnya.")
+                    break # Keluar dari menu folder sebab folder dah tak ada
+                except Exception as e:
+                    print(f"[!] Gagal memadam folder: {e}")
+
 def list_main_folders():
     while True:
         print("\n" + "="*50)
         print(f"{'FILE MANAGER - SENARAI FOLDER':^50}")
         print("="*50)
         try:
-            # Hanya scan folder dalam direktori mp4-main
             folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
             folders.sort()
+            
             if not folders:
-                print("[!] Tiada folder dijumpai.")
+                print("[!] Tiada folder dijumpai dalam mp4-main.")
+                input("Tekan Enter untuk kembali...")
+                break
             else:
                 for i, folder in enumerate(folders, 1):
                     count = len(os.listdir(os.path.join(BASE_DIR, folder)))
                     print(f"{i}. {folder} ({count} fail)")
+                
+                print("\n0. < KEMBALI KE MENU UTAMA")
+                print("Pilih nombor folder untuk uruskan (Buka/Padam):")
+                
+                sel = input(">> ")
+                if sel == '0': break
+                
+                try:
+                    idx = int(sel) - 1
+                    if 0 <= idx < len(folders):
+                        manage_selected_folder(folders[idx])
+                    else:
+                        print("[!] Nombor tidak sah.")
+                except ValueError:
+                    print("[!] Sila masukkan nombor.")
+                    
         except Exception as e:
-            print(f"[!] Ralat: {e}")
-        print("\n0. < KEMBALI")
-        if input("Pilih: ") == '0': break
+            print(f"[!] Ralat scan: {e}")
+            break
 
-# --- 3. DOWNLOADER (FIXED AUDIO CODEC) ---
+# --- 3. DOWNLOADER ---
 def run_download(urls, folder_path, format_type):
     ffmpeg_path = os.path.join(BASE_DIR, 'ffmpeg.exe')
     
-    # Asingkan MP3 dan MP4 ke sub-folder jika mod '4' dipilih
     if format_type == '4':
         for sub in ['mp3', 'mp4']:
             p = os.path.join(folder_path, sub)
@@ -108,7 +194,7 @@ def run_download(urls, folder_path, format_type):
         'quiet': False,
         'outtmpl': f'{folder_path}/%(title)s.%(ext)s',
         'ffmpeg_location': ffmpeg_path if os.path.exists(ffmpeg_path) else None,
-        'noplaylist': True, # Hanya muat turun satu video (elak looping)
+        'noplaylist': True,
     }
 
     if format_type == '1': # MP3 Only
@@ -118,7 +204,7 @@ def run_download(urls, folder_path, format_type):
         })
     elif format_type == '2': # Video Raw
         ydl_opts.update({'format': 'bestvideo'})
-    elif format_type == '3': # Video Combined (Boleh Play)
+    elif format_type == '3': # Video Combined
         ydl_opts.update({
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
@@ -160,7 +246,7 @@ def select_destination_folder():
             try: return os.path.join(BASE_DIR, folders[int(sel)-1])
             except: pass
 
-# --- 5. MAIN MENU ---
+# --- 5. MENU UTAMA ---
 def main_menu():
     while True:
         print("\n" + "="*50)
@@ -169,7 +255,7 @@ def main_menu():
         print("1. Download Single Link")
         print("2. Download Playlist")
         print("3. Bulk (.txt)")
-        print("4. File Manager (Senarai Folder)")
+        print("4. File Manager (Urus/Padam Folder)")
         print("5. UPDATE ENGINE (Fix Slow Speed)")
         print("6. UPDATE APP CODE (Dapatkan Feature Baru)")
         print("7. Keluar")
