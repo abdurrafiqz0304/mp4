@@ -31,9 +31,7 @@ def get_ffmpeg_path():
 
 # --- SYSTEM: FILE MANAGER (DELETE SELECTED/FOLDER) ---
 def delete_files_interactive(folder_path):
-    """Style mp4tomp3: Pilih nombor fail untuk delete"""
     while True:
-        # Scan semua fail
         all_files = []
         for root, dirs, files in os.walk(folder_path):
             for file in files:
@@ -44,7 +42,7 @@ def delete_files_interactive(folder_path):
         all_files.sort(key=lambda x: x[0])
 
         if not all_files:
-            print("\n(Folder kosong / Tiada fail)")
+            print("\n(Folder kosong)")
             input("[Enter] untuk kembali")
             return
 
@@ -55,15 +53,14 @@ def delete_files_interactive(folder_path):
             print(f"{i}. {name} ({size_mb:.2f} MB)")
         print("0. Kembali")
 
-        print("\nCara Pilih: Taip nombor (contoh: 1,3,5) untuk delete fail tersebut.")
-        print("Atau taip 'all' untuk delete semua.")
+        print("\nCara Pilih: Taip nombor (contoh: 1,3) atau 'all'")
         choice = input("Pilihan: ").strip()
         
         if choice == '0': return
         
         to_delete = []
         if choice.lower() == 'all':
-            if input(f"⚠️ AMARAN: Padam SEMUA {len(all_files)} fail? (y/n): ").lower() == 'y':
+            if input(f"⚠️ AMARAN: Padam SEMUA fail? (y/n): ").lower() == 'y':
                 to_delete = all_files
         else:
             try:
@@ -72,7 +69,7 @@ def delete_files_interactive(folder_path):
                     if 1 <= idx <= len(all_files):
                         to_delete.append(all_files[idx-1])
             except:
-                print("❌ Input salah. Guna koma (,) untuk asingkan nombor.")
+                print("❌ Input salah.")
                 continue
         
         if to_delete:
@@ -86,10 +83,9 @@ def delete_files_interactive(folder_path):
 
 def file_manager_menu():
     while True:
-        # Scan folder sedia ada
         folders = [d for d in os.listdir('.') if os.path.isdir(d) and not d.startswith('.') and not d.startswith('__')]
         
-        print("\n" + "="*40); print("    📁 PENGURUS FAIL (FILE MANAGER)    "); print("="*40)
+        print("\n" + "="*40); print("    📁 PENGURUS FAIL    "); print("="*40)
         
         if not folders:
             print("(Tiada folder dijumpai)")
@@ -100,16 +96,16 @@ def file_manager_menu():
         print("0. Kembali")
 
         try:
-            c = int(input("\nPilih Folder untuk Urus: "))
+            c = int(input("\nPilih Folder: "))
             if c == 0: return
             selected_folder = folders[c-1]
         except: continue
 
         while True:
             print(f"\n--- MENGURUS: '{selected_folder}' ---")
-            print("1. Buka Folder (Explorer)")
-            print("2. Pilih & Padam Video (Selected Delete)")
-            print("3. PADAM FOLDER INI (Delete Entire Folder)")
+            print("1. Buka Folder")
+            print("2. Pilih & Padam Video (Select Delete)")
+            print("3. BUANG SATU FOLDER (Delete All)")
             print("0. Kembali")
             
             act = input("Pilihan: ").strip()
@@ -118,21 +114,21 @@ def file_manager_menu():
             if act == '1': open_folder_window(selected_folder)
             if act == '2': delete_files_interactive(selected_folder)
             if act == '3':
-                confirm = input(f"⚠️ ADKAH ANDA PASTI nak buang folder '{selected_folder}'? (yes/no): ")
+                confirm = input(f"⚠️ PASTI nak buang folder '{selected_folder}'? (yes/no): ")
                 if confirm.lower() == 'yes':
                     try: 
                         shutil.rmtree(selected_folder)
                         print("✅ Folder berjaya dibuang.")
-                        break # Keluar dari menu ni sebab folder dah hilang
+                        break 
                     except Exception as e: print(f"❌ Error: {e}")
 
-# --- SYSTEM: FOLDER SELECTOR (NEW FEATURE) ---
+# --- SYSTEM: FOLDER SELECTOR (AUTO DETECT) ---
 def select_folder_menu(default_name):
     while True:
         print(f"\n--- PILIH FOLDER SIMPANAN ---")
         print(f"1. Guna Default ('{default_name}')")
-        print(f"2. Buat Folder Baru (Custom Name)")
-        print(f"3. Pilih Folder Sedia Ada (List Existing)")
+        print(f"2. Buat Folder Baru")
+        print(f"3. Pilih Folder Sedia Ada (List)")
         print("0. Kembali")
         
         c = input("Pilihan: ").strip()
@@ -140,16 +136,15 @@ def select_folder_menu(default_name):
         if c == '1': return default_name
         
         if c == '2':
-            name = input("Masukkan nama folder baru: ").strip()
+            name = input("Nama folder baru: ").strip()
             return name if name else default_name
             
         if c == '3':
-            # Scan folder untuk dipilih
             folders = [d for d in os.listdir('.') if os.path.isdir(d) and not d.startswith('.') and not d.startswith('__')]
             if not folders:
-                print("❌ Tiada folder lain dijumpai.")
+                print("❌ Tiada folder lain.")
                 continue
-                
+            
             print("\n--- FOLDER SEDIA ADA ---")
             for i, d in enumerate(folders, 1):
                 print(f"{i}. {d}")
@@ -160,15 +155,15 @@ def select_folder_menu(default_name):
                 if idx == 0: continue
                 return folders[idx-1]
             except:
-                print("❌ Pilihan tidak sah.")
+                print("❌ Pilihan salah.")
 
-# --- CORE DOWNLOAD ENGINE ---
+# --- DOWNLOAD ENGINE (AUDIO FIX INCLUDED) ---
 def run_downloader(urls, format_mode, quality_opt, base_folder):
     if not os.path.exists(base_folder): os.makedirs(base_folder)
     
     ffmpeg_loc = get_ffmpeg_path()
     if not ffmpeg_loc:
-        print(f"\n❌ CRITICAL: FFmpeg tak jumpa. Sila run install.bat!")
+        print(f"\n❌ ERROR: FFmpeg tak jumpa. Sila run install.bat!")
         return
 
     path_mp3 = base_folder
@@ -203,10 +198,12 @@ def run_downloader(urls, format_mode, quality_opt, base_folder):
         mp4_opts.update({
             'format': f"bestvideo[height<={res}]+bestaudio/best[height<={res}]",
             'merge_output_format': 'mp4',
-            'postprocessor_args': {'merger': ['-c:a', 'aac']}, # Fix Opus Issue
+            # --- FIX AUDIO WINDOWS MEDIA PLAYER ---
+            # Baris ini memaksa FFmpeg tukar audio Opus kepada AAC
+            'postprocessor_args': {'merger': ['-c:a', 'aac']}, 
             'outtmpl': f'{path_mp4}/%(title)s.%(ext)s',
         })
-        opts_list.append(("🎬 VIDEO (MP4)", mp4_opts))
+        opts_list.append(("🎬 VIDEO (MP4 + SOUND)", mp4_opts))
 
     if format_mode == 'mute':
         mute_opts = common_opts.copy()
@@ -238,9 +235,9 @@ def update_engine():
 
 def main_menu():
     while True:
-        print("\n" + "="*50); print("   🔥 ULTIMATE DOWNLOADER V7 (MANAGER) 🔥   "); print("="*50)
+        print("\n" + "="*50); print("   🔥 ULTIMATE DOWNLOADER V8 (MEDIA PLAYER FIX) 🔥   "); print("="*50)
         print("1. MP3 Sahaja")
-        print("2. MP4 Sahaja (Auto Fix Audio)")
+        print("2. MP4 Sahaja (Boleh Play kat Semua Player)")
         print("3. COMBO (Split Folders)")
         print("4. VIDEO BISU (No Sound)")
         print("5. FILE MANAGER (Delete Files/Folders)")
@@ -251,7 +248,7 @@ def main_menu():
 
         if pilih == '0': break
         if pilih == '6': update_engine(); continue
-        if pilih == '5': file_manager_menu(); continue # Menu Delete kat sini
+        if pilih == '5': file_manager_menu(); continue
         
         mode = ''; def_folder = 'Downloads'
         if pilih == '1': mode = 'mp3'; def_folder = 'Downloads_Music'
@@ -269,7 +266,6 @@ def main_menu():
         if q == '0': continue
         qual = 'high' if q == '1' else ('low' if q == '3' else 'mid')
 
-        # NEW: Select Existing Folder Logic
         target_folder = select_folder_menu(def_folder)
         if target_folder is None: continue
 
