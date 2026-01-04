@@ -5,7 +5,7 @@ import platform
 import subprocess
 
 # --- KONFIGURASI PATH ---
-# Memastikan program merujuk kepada direktori aplikasi (mp4-main)
+# Memastikan program sentiasa merujuk kepada direktori aplikasi (mp4-main)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- 1. SYSTEM UPDATE CENTER ---
@@ -24,20 +24,33 @@ def update_center():
 
         if choice == '1':
             print("\n[*] Mengemaskini engine muat turun...")
-            # Mengemas kini yt-dlp untuk kelajuan optimum
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
-            input("\nSelesai! Tekan Enter...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
+                print("\n[+] Engine berjaya dikemaskini!")
+            except Exception as e:
+                print(f"[!] Ralat: {e}")
+            input("Tekan Enter untuk sambung...")
         
         elif choice == '2':
             print("\n[*] Mengemaskini library...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "pyperclip", "yt-dlp"])
-            input("\nSelesai! Tekan Enter...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "pyperclip", "yt-dlp"])
+                print("\n[+] Library berjaya dikemaskini!")
+            except Exception as e:
+                print(f"[!] Ralat: {e}")
+            input("Tekan Enter untuk sambung...")
 
         elif choice == '3':
             print("\n[*] Menjalankan kemas kini aplikasi...")
-            print("[*] Sila tunggu, CMD baru akan dibuka untuk menggantikan fail.")
+            print("[*] CMD baru akan dibuka untuk proses muat turun dan penggantian fail.")
             
-            # Logik: Download -> Extract -> XCopy (Replace folder asal) -> Install.bat
+            # --- LOGIK UPDATE (LINK BARU + REPLACE FOLDER) ---
+            # 1. Download zip dari link GitHub awak.
+            # 2. Extract zip (akan jadi folder 'mp4-main').
+            # 3. XCOPY semua isi 'mp4-main' ke folder sekarang (REPLACE).
+            # 4. Padam folder 'mp4-main' dan fail zip.
+            # 5. Jalankan install.bat untuk update PATH.
+            
             update_cmd = (
                 f'start "Updater" cmd /c "cd /d "{BASE_DIR}" '
                 f'&& curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip '
@@ -46,11 +59,12 @@ def update_center():
                 f'&& rmdir /s /q mp4-main '
                 f'&& del projek.zip '
                 f'&& call install.bat '
-                f'&& echo [+] UPDATE BERJAYA! SILA RESTART PROGRAM. & pause"'
+                f'&& echo. && echo [+] UPDATE SELESAI! SILA RESTART PROGRAM. && pause"'
             )
+            
             try:
                 os.system(update_cmd)
-                sys.exit() # Tutup program supaya xcopy boleh overwrite fail .py
+                sys.exit() # Tutup program utama supaya fail boleh diganti
             except Exception as e:
                 print(f"[!] Ralat kemas kini: {e}")
 
@@ -84,7 +98,9 @@ def run_download(urls, folder_path, format_type):
         for sub in ['mp3', 'mp4']:
             p = os.path.join(folder_path, sub)
             if not os.path.exists(p): os.makedirs(p)
+        print("\n[*] Memproses MP3...")
         run_download(urls, os.path.join(folder_path, 'mp3'), '1')
+        print("\n[*] Memproses MP4...")
         run_download(urls, os.path.join(folder_path, 'mp4'), '3')
         return
 
@@ -92,15 +108,17 @@ def run_download(urls, folder_path, format_type):
         'quiet': False,
         'outtmpl': f'{folder_path}/%(title)s.%(ext)s',
         'ffmpeg_location': ffmpeg_path if os.path.exists(ffmpeg_path) else None,
-        'noplaylist': True, # Hanya muat turun satu video
+        'noplaylist': True, # Hanya muat turun satu video (elak looping)
     }
 
-    if format_type == '1':
+    if format_type == '1': # MP3 Only
         ydl_opts.update({
             'format': 'bestaudio/best',
             'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '320'}],
         })
-    elif format_type == '3': # Mengelakkan ralat audio Opus
+    elif format_type == '2': # Video Raw
+        ydl_opts.update({'format': 'bestvideo'})
+    elif format_type == '3': # Video Combined (Boleh Play)
         ydl_opts.update({
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
@@ -109,7 +127,9 @@ def run_download(urls, folder_path, format_type):
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for url in urls:
-            if url.strip(): ydl.download([url.strip()])
+            if url.strip(): 
+                try: ydl.download([url.strip()])
+                except Exception as e: print(f"[!] Gagal: {e}")
 
 # --- 4. PEMILIHAN FOLDER ---
 def select_destination_folder():
@@ -133,7 +153,6 @@ def select_destination_folder():
                 if not os.path.exists(p): os.makedirs(p)
                 return p
         elif c == '3':
-            # Scan folders di mp4-main sahaja
             folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
             if not folders: continue
             for i, f in enumerate(folders, 1): print(f"{i}. {f}")
@@ -152,7 +171,7 @@ def main_menu():
         print("3. Bulk (.txt)")
         print("4. File Manager (Senarai Folder)")
         print("5. UPDATE ENGINE (Fix Slow Speed)")
-        print("6. UPDATE APP CODE (Replace Files)")
+        print("6. UPDATE APP CODE (Dapatkan Feature Baru)")
         print("7. Keluar")
         
         choice = input("Pilih: ")
@@ -163,7 +182,7 @@ def main_menu():
 
             print("\nFormat:")
             print("1. MP3 Only")
-            print("2. Video Raw sahaja")
+            print("2. Video Raw sahaja (Tiada Audio)")
             print("3. Video Combined (Boleh Play)")
             print("4. Video & MP3 (Separated Sub-folders)")
             print("0. < KEMBALI")
