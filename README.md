@@ -37,3 +37,16 @@ curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/hea
 ```bash
 Invoke-WebRequest -Uri "https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip" -OutFile "projek.zip"; Expand-Archive -Path "projek.zip" -DestinationPath "."; cd mp4-main; .\install.bat
 ```
+
+### MAC/LINUX USER
+1.
+```bash
+cd ~/Downloads/mp4-main && sh install.sh
+```
+
+###  ⚠️ IF THE COMMAND ABOVE FAILS (ALTERNATIVE METHOD)
+
+1. Type ```bash cd ``` (type a space after cd).
+2. Drag and drop the ```bash mp4-main``` folder into the Terminal.
+3. Press ENTER.
+4. Then type: ```bash sh install.sh``` and press ENTER.
