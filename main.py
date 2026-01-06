@@ -7,6 +7,7 @@ import shutil
 
 # --- PATH CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OS_TYPE = platform.system() # Detect Windows or Darwin (Mac)
 
 # --- 1. SYSTEM UPDATE CENTER ---
 def update_center():
@@ -40,23 +41,47 @@ def update_center():
 
         elif choice == '3':
             print("\n[*] Starting update process...")
-            # Using the specific link and replace logic you requested
-            update_cmd = (
-                f'start "Updater" cmd /c "cd /d "{BASE_DIR}" '
-                f'&& curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip '
-                f'&& tar -xf projek.zip '
-                f'&& xcopy mp4-main\\* . /E /Y /Q '
-                f'&& rmdir /s /q mp4-main '
-                f'&& del projek.zip '
-                f'&& call install.bat '
-                f'&& echo. && echo [+] UPDATE COMPLETE! PLEASE RESTART. && pause"'
-            )
-            try:
-                os.system(update_cmd)
-                sys.exit()
-            except: pass
+            
+            # --- LOGIK UPDATE (WINDOWS VS MAC) ---
+            if OS_TYPE == "Windows":
+                # Windows Command
+                update_cmd = (
+                    f'start "Updater" cmd /c "cd /d "{BASE_DIR}" '
+                    f'&& curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip '
+                    f'&& tar -xf projek.zip '
+                    f'&& xcopy mp4-main\\* . /E /Y /Q '
+                    f'&& rmdir /s /q mp4-main '
+                    f'&& del projek.zip '
+                    f'&& call install.bat '
+                    f'&& echo. && echo [+] UPDATE COMPLETE! PLEASE RESTART. && pause"'
+                )
+                try:
+                    os.system(update_cmd)
+                    sys.exit()
+                except: pass
+            
+            else:
+                # Mac/Linux Command (Guna bash, rm, cp, chmod)
+                print("[*] Downloading & Replacing files for Mac...")
+                try:
+                    # Gabungan command Unix
+                    cmd = (
+                        f'cd "{BASE_DIR}" && '
+                        f'curl -k -L -o projek.zip https://github.com/abdurrafiqz0304/mp4/archive/refs/heads/main.zip && '
+                        f'unzip -o projek.zip && '
+                        f'cp -r mp4-main/* . && '
+                        f'rm -rf mp4-main projek.zip && '
+                        f'chmod +x install_mac.sh && '
+                        f'./install_mac.sh'
+                    )
+                    os.system(cmd)
+                    print("\n[+] UPDATE COMPLETE! Please restart your terminal.")
+                    sys.exit()
+                except Exception as e:
+                    print(f"[!] Error: {e}")
+                    input("Press Enter...")
 
-# --- 2. FILE MANAGER (BATCH DELETE UPDATE) ---
+# --- 2. FILE MANAGER ---
 def delete_specific_file(folder_path):
     while True:
         print("\n--- SELECT FILES TO DELETE ---")
@@ -78,37 +103,23 @@ def delete_specific_file(folder_path):
             sel_input = input("Select file number(s): ")
             if sel_input.strip() == '0': return
 
-            # --- BATCH SELECTION LOGIC ---
             selections = sel_input.split()
             valid_files = []
-            
             for s in selections:
                 if s.isdigit():
                     idx = int(s) - 1
-                    if 0 <= idx < len(files):
-                        valid_files.append(files[idx])
+                    if 0 <= idx < len(files): valid_files.append(files[idx])
             
-            if not valid_files:
-                print("[!] No valid file numbers selected.")
-                input("Press Enter...")
-                continue
+            if not valid_files: continue
             
-            # Summary before deletion
-            print(f"\n[WARNING] You selected {len(valid_files)} files to delete:")
-            for vf in valid_files:
-                print(f"- {vf}")
-            
-            confirm = input("Confirm delete ALL files above? (y/n): ")
-            if confirm.lower() == 'y':
+            print(f"\n[WARNING] Deleting {len(valid_files)} files.")
+            if input("Confirm? (y/n): ").lower() == 'y':
                 for vf in valid_files:
                     try:
                         os.remove(os.path.join(folder_path, vf))
                         print(f"[+] Deleted: {vf}")
-                    except Exception as e:
-                        print(f"[!] Failed to delete {vf}: {e}")
-                input("Done. Press Enter...")
-            else:
-                print("[*] Cancelled.")
+                    except: print(f"[!] Failed: {vf}")
+                input("Done. Enter...")
 
         except Exception as e: 
             print(f"[!] Error: {e}")
@@ -119,51 +130,46 @@ def manage_selected_folder(folder_name):
     while True:
         if not os.path.exists(path):
             print("[!] Folder missing."); break
-            
         cnt = len([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
         print("\n" + "-"*40)
         print(f"MANAGE FOLDER: {folder_name} [{cnt} files]")
         print("-" * 40)
-        print("1. Open Folder (Explorer)")
-        print("2. Delete Files (Select Single/Multiple)")
-        print("3. DELETE ENTIRE FOLDER (Permanent)")
+        print("1. Open Folder")
+        print("2. Delete Files")
+        print("3. DELETE ENTIRE FOLDER")
         print("0. < BACK")
         
         c = input("Option: ")
         if c == '0': break
         elif c == '1':
-            if platform.system() == "Windows": os.startfile(path)
-            else: subprocess.call(["open", path])
+            # Cross-platform Open Folder
+            if OS_TYPE == "Windows": os.startfile(path)
+            elif OS_TYPE == "Darwin": subprocess.call(["open", path]) # Mac
+            else: subprocess.call(["xdg-open", path]) # Linux
         elif c == '2': delete_specific_file(path)
         elif c == '3':
-            if input(f"CONFIRM DELETE FOLDER '{folder_name}'? (Type 'YES'): ") == 'YES':
+            if input(f"CONFIRM DELETE '{folder_name}'? (Type 'YES'): ") == 'YES':
                 try: 
                     shutil.rmtree(path)
-                    print("[+] Folder deleted forever.")
-                    break
-                except: print("[!] Delete failed.")
+                    print("[+] Deleted."); break
+                except: print("[!] Failed.")
 
 def list_main_folders():
     while True:
         print("\n" + "="*50)
-        print(f"{'FILE MANAGER - DELETE/MANAGE':^50}")
+        print(f"{'FILE MANAGER':^50}")
         print("="*50)
         try:
             folders = [f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f)) and not f.startswith('.')]
             folders.sort()
-            
             if not folders: 
                 print("[!] No folders found."); break
-                
             for i, f in enumerate(folders, 1):
                 count = len(os.listdir(os.path.join(BASE_DIR, f)))
                 print(f"{i}. {f} ({count} items)")
-                
             print("\n0. < MAIN MENU")
-            print("Select folder number to manage/delete:")
-            sel = input(">> ")
+            sel = input("Select folder: ")
             if sel == '0': break
-            
             try:
                 idx = int(sel) - 1
                 if 0 <= idx < len(folders): manage_selected_folder(folders[idx])
@@ -172,8 +178,13 @@ def list_main_folders():
 
 # --- 3. DOWNLOADER ---
 def run_download(urls, folder_path, format_type):
-    ffmpeg_path = os.path.join(BASE_DIR, 'ffmpeg.exe')
+    # Mac/Linux mungkin perlu ./ffmpeg jika ada dalam folder, atau guna global ffmpeg
+    ffmpeg_exe = 'ffmpeg.exe' if OS_TYPE == "Windows" else 'ffmpeg'
+    ffmpeg_path = os.path.join(BASE_DIR, ffmpeg_exe)
     
+    # Kalau tak jumpa local ffmpeg, biar yt-dlp cari kat global path
+    if not os.path.exists(ffmpeg_path): ffmpeg_path = None 
+
     if format_type == '4':
         for sub in ['mp3', 'mp4']:
             p = os.path.join(folder_path, sub)
@@ -187,7 +198,7 @@ def run_download(urls, folder_path, format_type):
     ydl_opts = {
         'quiet': False, 'no_warnings': True, 'noplaylist': True,
         'outtmpl': f'{folder_path}/%(title)s.%(ext)s',
-        'ffmpeg_location': ffmpeg_path if os.path.exists(ffmpeg_path) else None
+        'ffmpeg_location': ffmpeg_path
     }
 
     if format_type == '1':
@@ -203,7 +214,7 @@ def run_download(urls, folder_path, format_type):
                 try: ydl.download([url.strip()])
                 except: print(f"[!] Failed: {url}")
 
-# --- 4. SELECT FOLDER ---
+# --- 4. MAIN LOGIC ---
 def select_destination_folder():
     default = os.path.join(BASE_DIR, 'downloads')
     while True:
@@ -231,16 +242,15 @@ def select_destination_folder():
             try: return os.path.join(BASE_DIR, folders[int(sel)-1])
             except: pass
 
-# --- 5. MAIN MENU ---
 def main_menu():
     while True:
         print("\n" + "="*50)
-        print(f"{'MP3/MP4 TURBO V3.1 (ENGLISH EDITION)':^50}") 
+        print(f"{'MP3/MP4 TURBO V3.2 (WIN/MAC SUPPORT)':^50}") 
         print("="*50)
         print("1. Download Single Link")
         print("2. Download Playlist")
         print("3. Bulk (.txt)")
-        print("4. File Manager (Manage/Delete Folders)")
+        print("4. File Manager")
         print("5. UPDATE ENGINE")
         print("6. UPDATE APP CODE")
         print("7. Exit")
@@ -250,7 +260,7 @@ def main_menu():
         if choice in ['1', '2', '3']:
             dest = select_destination_folder()
             if not dest: continue
-            print("\nFormat:\n1. MP3 Only\n2. Raw Video (No Audio)\n3. Video Combined (Playable)\n4. Video & MP3 (Separated)\n0. Back")
+            print("\nFormat:\n1. MP3 Only\n2. Raw Video\n3. Video Combined\n4. Video & MP3 (Separated)\n0. Back")
             fmt = input("Select Format: ")
             if fmt == '0': continue
             while True:
@@ -260,16 +270,14 @@ def main_menu():
                 print("\n1.Continue 2.Open Folder 3.Main Menu")
                 act = input(">> ")
                 if act == '2':
-                    if platform.system() == "Windows": os.startfile(dest)
-                    else: subprocess.call(["open", dest])
+                    if OS_TYPE == "Windows": os.startfile(dest)
+                    elif OS_TYPE == "Darwin": subprocess.call(["open", dest])
+                    else: subprocess.call(["xdg-open", dest])
                 elif act == '3': break
         
-        elif choice == '4':
-            list_main_folders()
-        elif choice in ['5', '6']:
-            update_center()
-        elif choice == '7':
-            sys.exit()
+        elif choice == '4': list_main_folders()
+        elif choice in ['5', '6']: update_center()
+        elif choice == '7': sys.exit()
 
 if __name__ == "__main__":
     try: main_menu()
